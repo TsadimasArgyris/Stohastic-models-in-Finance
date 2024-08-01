@@ -1,0 +1,104 @@
+##################################################################
+#                                                                #
+# purpose   : Stohastic Finance Final Assignment                 #
+#                                                                #
+# author    : Tsadimas Anargyros                                 #
+#                                                                #
+# professor : A.Giannakopoulos                                   #
+#                                                                #
+# Date      : July 2024                                          #
+#                                                                #
+##################################################################
+
+# Set working directory
+setwd("C:/MsC/Stohastic models in Finance/assignment")
+
+# Install and load packages if not already installed
+if (!require(quantmod)) install.packages("quantmod", dependencies = TRUE)
+if (!require(rugarch)) install.packages("rugarch", dependencies = TRUE)
+if (!require(tseries)) install.packages("tseries", dependencies = TRUE)
+
+library(quantmod)
+library(rugarch)
+library(tseries)
+
+
+from.dat <- as.Date(c("2015-01-05"))
+to.dat <- as.Date(c("2023-03-25"))
+getSymbols("^FTSE", from = from.dat, to = to.dat)
+
+plot(FTSE$FTSE.Close)
+adf.test(log(na.omit(FTSE$FTSE.Close)))
+Box.test(FTSE$FTSE.Close)
+# The series is not stationary
+difflog_close <- na.omit(diff(log(FTSE$FTSE.Close)))
+plot(difflog_close)
+acf(difflog_close)
+
+acf(abs(difflog_close))
+adf.test(difflog_close)
+par(mfrow = c(1, 2))
+acf(difflog_close^2)
+pacf(difflog_close^2)
+shapiro.test(as.numeric(difflog_close))
+qqnorm(as.numeric(difflog_close))
+qqline(as.numeric(difflog_close), col = "steelblue", lwd = 2)
+par(mfrow = c(1, 1))
+
+garchspec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "norm"
+)
+
+fitgarchlog <- ugarchfit(spec = garchspec, data = difflog_close)
+
+summary(fitgarchlog)
+gamma <- fitgarchlog@fit$coef[2] + fitgarchlog@fit$coef[3]
+omega <- fitgarchlog@fit$coef[1]
+sigma_uncond <- omega / (1 - gamma)
+sigma_uncond
+plot(fitgarchlog)
+
+forecastloggarch <- ugarchforecast(fitgarchlog, data = NULL, n.ahead = 10, n.roll = 0, out.sample = 0)
+
+plot(forecastloggarch)
+# write the model
+
+egarchspec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "std"
+)
+
+fitegarchlog <- ugarchfit(spec = egarchspec, data = difflog_close)
+
+summary(fitegarchlog)
+gamma <- fitegarchlog@fit$coef[2] + fitegarchlog@fit$coef[3]
+omega <- fitegarchlog@fit$coef[1]
+sigma_uncond <- omega / (1 - gamma)
+sigma_uncond
+plot(fitgarchlog, which = 'all')
+
+forecastloggarch <- ugarchforecast(fitegarchlog, data = NULL, n.ahead = 10, n.roll = 0, out.sample = 0)
+
+plot(forecastloggarch)
+
+egarchspec <- ugarchspec(
+  variance.model = list(model = "eGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(0, 0), include.mean = FALSE),
+  distribution.model = "norm"  # Change to 'std' if using Student-t errors
+)
+
+fitegarchlog <- ugarchfit(spec = egarchspec, data = difflog_close)
+
+summary(fitegarchlog)
+gamma <- fitegarchlog@fit$coef[2] + fitegarchlog@fit$coef[3]
+omega <- fitegarchlog@fit$coef[1]
+sigma_uncond <- omega / (1 - gamma)
+sigma_uncond
+plot(fitegarchlog, which = 'all')
+
+forecastloggarch <- ugarchforecast(fitegarchlog, data = NULL, n.ahead = 10, n.roll = 0, out.sample = 0)
+
+plot(forecastloggarch)

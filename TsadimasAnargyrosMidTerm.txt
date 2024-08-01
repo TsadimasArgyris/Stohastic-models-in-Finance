@@ -1,0 +1,135 @@
+#-----------------------------------------#
+# Date   : May 2024
+#
+# Author : Tsadimas Anargyros f3612318
+#
+# Purpose: Mid-Term exercise in Stohastic Models in Finance
+#-----------------------------------------#
+
+#Exercise 1.c
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def trinomial_rv(u, m, d, p_u, p_m, p_d):
+    rand = np.random.rand()
+    if rand < p_u:
+        return u
+    elif rand < p_u + p_m:
+        return m
+    else:
+        return d
+
+# Parameters
+u = 1.1   
+m = 1.0 
+d = 0.9   
+p_u = 0.3 
+p_m = 0.4 
+p_d = 0.3 
+
+# Generate trinomial random variables
+N = 1000
+values = np.array([trinomial_rv(u, m, d, p_u, p_m, p_d) for _ in range(N)])
+
+# Plot histogram
+plt.hist(values, bins=10, edgecolor='black')
+plt.title('Histogram of Trinomial Random Variables')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.show()
+
+# Function to generate a single path
+def generate_path(S_0, u, m, d, p_u, p_m, p_d, T):
+    path = np.zeros(T)
+    path[0] = S_0
+    for t in range(1, T):
+        path[t] = path[t-1] * trinomial_rv(u, m, d, p_u, p_m, p_d)
+    return path
+
+# Simulate a single path
+T = 1000
+S_0 = 10
+single_path = generate_path(S_0, u, m, d, p_u, p_m, p_d, T)
+
+# Plot the single path
+plt.plot(single_path)
+plt.title('Single Path of Trinomial Model')
+plt.xlabel('Time Step')
+plt.ylabel('Asset Price')
+plt.show()
+
+# Function to generate multiple paths
+def generate_multiple_paths(S_0, u, m, d, p_u, p_m, p_d, T, M):
+    paths = np.zeros((M, T))
+    for i in range(M):
+        paths[i, :] = generate_path(S_0, u, m, d, p_u, p_m, p_d, T)
+    return paths
+
+# Simulate multiple paths
+M = 10000  # Number of paths
+multiple_paths = generate_multiple_paths(S_0, u, m, d, p_u, p_m, p_d, T, M)
+
+# Calculate expected value and variance of the final prices
+expected_final_price = np.mean(multiple_paths[:, -1])
+variance_final_price = np.var(multiple_paths[:, -1])
+
+print(f"Simulated E[S(T)]: {expected_final_price}")
+print(f"Simulated Var(S(T)) : {variance_final_price}")
+
+# Analytical calculations for comparison
+expected_ST_analytic = S_0 * ((p_u * u) + (p_m * m) + (p_d * d))**T
+variance_ST_analytic = (S_0**2) * ((p_u * u**2) + (p_m * m**2) + (p_d * d**2))**T - expected_ST_analytic**2
+
+print(f"Analytical E[S(T)]: {expected_ST_analytic}")
+print(f"Analytical Var(S(T)) : {variance_ST_analytic}")
+
+#-----------------------------------------
+
+#-----------------------------------------
+
+#exercise 2
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parameters for GARCH(1,1)
+omega = 0.1
+alpha = 0.1
+beta = 0.8
+n_samples = 1000
+
+# Pre-allocate arrays for returns and conditional variances
+returns = np.zeros(n_samples)
+variances = np.zeros(n_samples)
+
+# Initialize the first variance
+variances[0] = omega / (1 - alpha - beta)
+
+# Generate the GARCH(1,1) process
+for t in range(1, n_samples):
+    variances[t] = omega + alpha * (returns[t-1]**2) + beta * variances[t-1]
+    returns[t] = np.random.normal(0, np.sqrt(variances[t]))
+
+# Plot the simulated GARCH(1,1) time series data and conditional variances
+plt.figure(figsize=(12, 6))
+
+# Plot returns
+plt.subplot(2, 1, 1)
+plt.plot(returns, label='Returns')
+plt.title('Simulated GARCH(1,1) Returns')
+plt.legend()
+
+# Plot conditional variances
+plt.subplot(2, 1, 2)
+plt.plot(variances, label='Conditional Variances', color='orange')
+plt.title('Simulated GARCH(1,1) Conditional Variances')
+plt.legend()
+
+# Predict future variances
+n = 10
+predictions = np.zeros(n)
+for t in range(1, n):
+    predictions[t] = variances[0] + (alpha + beta)**t * (variances[n_samples-1] - variances[0])
+
+plt.show()
